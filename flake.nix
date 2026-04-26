@@ -2,15 +2,33 @@
   description = "nanobrew installation manager for nix-darwin";
 
   inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nanobrew-src = {
       url = "github:justrach/nanobrew";
       flake = false;
     };
+    zig-overlay = {
+      url = "github:mitchellh/zig-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
-    { self, nanobrew-src }:
+    {
+      self,
+      nixpkgs,
+      nanobrew-src,
+      zig-overlay,
+    }:
     let
+      supportedSystems = [
+        "x86_64-darwin"
+        "aarch64-darwin"
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
+      forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: f system);
+
       ci = (import ./ci/flake-compat.nix).makeCi {
         inherit self nanobrew-src;
       };
@@ -29,12 +47,13 @@
         default = nix-nanobrew;
       };
 
-      packages = {
-        x86_64-darwin.nanobrew = ci.packages.x86_64-darwin.nanobrew;
-        aarch64-darwin.nanobrew = ci.packages.aarch64-darwin.nanobrew;
-        x86_64-linux.nanobrew = ci.packages.x86_64-linux.nanobrew;
-        aarch64-linux.nanobrew = ci.packages.aarch64-linux.nanobrew;
-      };
+      packages = forAllSystems (system: {
+        nanobrew = nixpkgs.legacyPackages.${system}.callPackage ./pkgs/nanobrew {
+          inherit nanobrew-src;
+          zig = zig-overlay.packages.${system}."0.16.0";
+        };
+        default = self.packages.${system}.nanobrew;
+      });
 
       inherit (ci) devShell ciTests githubActions;
     };

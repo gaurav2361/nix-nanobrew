@@ -13,7 +13,11 @@
 let
   inherit (lib) types;
 
-  cfg = config.nix-nanobrew;
+  # Detect if we are on Darwin
+  isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
+
+  # Support both 'nix-nanobrew' and 'modules.darwin.nanobrew' (for dotfiles style)
+  cfg = if isDarwin && config ? modules.darwin.nanobrew then config.modules.darwin.nanobrew else config.nix-nanobrew;
 
   nb = cfg.package;
 
@@ -28,7 +32,7 @@ let
     set -euo pipefail
 
     NIX_NANOBREW_UID=$(id -u "${cfg.user}" || (echo "Error: Failed to get UID of ${cfg.user}" >&2; exit 1))
-
+    
     if [[ "$(uname)" == "Darwin" ]]; then
       NIX_NANOBREW_GID=$(dscl . -read "/Groups/${cfg.group}" PrimaryGroupID 2>/dev/null | awk '{print $2}' || id -g "${cfg.user}")
     else
@@ -58,53 +62,60 @@ let
       sudo -u ${cfg.user} ${nb}/bin/nb bundle install "${nanobrewFile}"
     fi
   '';
+
+  nanobrewOptions = {
+    enable = lib.mkOption {
+      description = "Whether to install and configure nanobrew.";
+      type = types.bool;
+      default = false;
+    };
+    package = lib.mkOption {
+      description = "The nanobrew package to use.";
+      type = types.package;
+      default = pkgs.callPackage ../pkgs/nanobrew { 
+        nanobrew-src = config.nix-nanobrew.nanobrew-src or null; # Fallback
+      };
+    };
+    user = lib.mkOption {
+      description = "The user who should own /opt/nanobrew.";
+      type = types.str;
+    };
+    group = lib.mkOption {
+      description = "The group that should own /opt/nanobrew.";
+      type = types.str;
+      default = "admin";
+    };
+    autoMigrate = lib.mkOption {
+      description = "Whether to automatically migrate existing Homebrew installations.";
+      type = types.bool;
+      default = false;
+    };
+    brews = lib.mkOption {
+      description = "List of formulae to install.";
+      type = types.listOf types.str;
+      default = [ ];
+    };
+    casks = lib.mkOption {
+      description = "List of casks to install.";
+      type = types.listOf types.str;
+      default = [ ];
+    };
+    enableBashIntegration = lib.mkEnableOption "nanobrew bash integration" // {
+      default = true;
+    };
+    enableFishIntegration = lib.mkEnableOption "nanobrew fish integration" // {
+      default = true;
+    };
+    enableZshIntegration = lib.mkEnableOption "nanobrew zsh integration" // {
+      default = true;
+    };
+  };
 in
 {
   options = {
-    nix-nanobrew = {
-      enable = lib.mkOption {
-        description = "Whether to install and configure nanobrew.";
-        type = types.bool;
-        default = false;
-      };
-      package = lib.mkOption {
-        description = "The nanobrew package to use.";
-        type = types.package;
-      };
-      user = lib.mkOption {
-        description = "The user who should own /opt/nanobrew.";
-        type = types.str;
-      };
-      group = lib.mkOption {
-        description = "The group that should own /opt/nanobrew.";
-        type = types.str;
-        default = "admin";
-      };
-      autoMigrate = lib.mkOption {
-        description = "Whether to automatically migrate existing Homebrew installations.";
-        type = types.bool;
-        default = false;
-      };
-      brews = lib.mkOption {
-        description = "List of formulae to install.";
-        type = types.listOf types.str;
-        default = [ ];
-      };
-      casks = lib.mkOption {
-        description = "List of casks to install.";
-        type = types.listOf types.str;
-        default = [ ];
-      };
-      enableBashIntegration = lib.mkEnableOption "nanobrew bash integration" // {
-        default = true;
-      };
-      enableFishIntegration = lib.mkEnableOption "nanobrew fish integration" // {
-        default = true;
-      };
-      enableZshIntegration = lib.mkEnableOption "nanobrew zsh integration" // {
-        default = true;
-      };
-    };
+    nix-nanobrew = nanobrewOptions;
+    # Define modules.darwin.nanobrew if on Darwin to match user style
+    modules.darwin.nanobrew = lib.mkIf isDarwin nanobrewOptions;
   };
 
   config = lib.mkIf (cfg.enable) {
@@ -133,5 +144,14 @@ in
         ${setupNanobrew}
       '';
     };
+
+    # Bypass nix-darwin's Homebrew installation check if we are managing it.
+    system.checks.text = lib.mkIf (isDarwin && config.homebrew.enable or false) (
+      lib.mkBefore ''
+        # Ignore unused variable in nix-darwin versions without it
+        # shellcheck disable=SC2034
+        INSTALLING_HOMEBREW=1
+      ''
+    );
   };
 }
