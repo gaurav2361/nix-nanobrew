@@ -8,23 +8,12 @@
   pkgs,
   lib,
   config,
-  options,
   ...
 }:
 let
   inherit (lib) types;
 
-  # Support both nix-nanobrew and modules.darwin.nanobrew namespaces
-  # to satisfy modular dotfiles patterns without boilerplate.
   cfg = config.nix-nanobrew;
-  
-  # Check if the user is using the dotfiles modular namespace
-  modularCfg = config.modules.darwin.nanobrew or { enable = false; };
-  
-  # Merge configs if both are used, or prioritize one.
-  # For simplicity and to avoid "Duplicate enable" errors, we define options
-  # statically and just read from both.
-  
   nb = cfg.package;
 
   # Generate the content for the Nanobrew file (Brewfile)
@@ -64,7 +53,6 @@ let
     # 4. Declarative Package Installation
     if [[ -f "${nanobrewFile}" ]]; then
       echo "Syncing declarative packages..."
-      # Run as the target user
       sudo -u ${cfg.user} ${nb}/bin/nb bundle install "${nanobrewFile}"
     fi
 
@@ -78,36 +66,23 @@ let
     ${lib.optionalString (cfg.onActivation.cleanup == "uninstall") ''
       echo "Cleaning up unlisted packages..."
       
-      # Get desired names from config
       DESIRED_BREWS=(${lib.concatStringsSep " " cfg.brews})
       DESIRED_CASKS=(${lib.concatStringsSep " " cfg.casks})
 
-      # Cleanup formulae: we loop to catch transitive orphans
       while true; do
         REMOVED_ANY=false
-        # nb leaves returns "name version"
         LEAVES=$(sudo -u ${cfg.user} ${nb}/bin/nb leaves | awk '{print $1}')
         for pkg in $LEAVES; do
-          if [[ " ''${DESIRED_BREWS[@]} " =~ " ''${pkg} " ]]; then
+          if [[ " ''${DESIRED_BREWS[@]} " =~ " ''${pkg} " ]] || [[ " ''${DESIRED_CASKS[@]} " =~ " ''${pkg} " ]]; then
             continue
           fi
-          
-          # In nanobrew, sometimes casks are also tracked in leaves
-          if [[ " ''${DESIRED_CASKS[@]} " =~ " ''${pkg} " ]]; then
-            continue
-          fi
-
           echo "Removing unlisted formula: $pkg"
           sudo -u ${cfg.user} ${nb}/bin/nb remove "$pkg"
           REMOVED_ANY=true
         done
-        
-        if [[ "$REMOVED_ANY" == "false" ]]; then
-          break
-        fi
+        if [[ "$REMOVED_ANY" == "false" ]]; then break; fi
       done
 
-      # Cleanup casks
       INSTALLED_CASKS=$(sudo -u ${cfg.user} ${nb}/bin/nb list | grep "(cask)" | awk '{print $1}')
       for cask in $INSTALLED_CASKS; do
         if [[ ! " ''${DESIRED_CASKS[@]} " =~ " ''${cask} " ]]; then
@@ -117,14 +92,10 @@ let
       done
     ''}
   '';
-
-  # Define the actual options
-  nanobrewOptions = {
-    enable = lib.mkOption {
-      description = "Whether to install and configure nanobrew.";
-      type = types.bool;
-      default = false;
-    };
+in
+{
+  options.nix-nanobrew = {
+    enable = lib.mkEnableOption "nanobrew package manager";
     package = lib.mkOption {
       description = "The nanobrew package to use.";
       type = types.package;
@@ -170,55 +141,24 @@ let
         description = "Whether to uninstall packages not listed in the configuration.";
       };
     };
-    enableBashIntegration = lib.mkEnableOption "nanobrew bash integration" // {
-      default = true;
-    };
-    enableFishIntegration = lib.mkEnableOption "nanobrew fish integration" // {
-      default = true;
-    };
-    enableZshIntegration = lib.mkEnableOption "nanobrew zsh integration" // {
-      default = true;
-    };
+    enableBashIntegration = lib.mkEnableOption "nanobrew bash integration" // { default = true; };
+    enableFishIntegration = lib.mkEnableOption "nanobrew fish integration" // { default = true; };
+    enableZshIntegration = lib.mkEnableOption "nanobrew zsh integration" // { default = true; };
   };
-in
-{
-  # We declare the options in both namespaces so users can use either
-  # without seeing "option does not exist" or having to write a bridge.
-  options.nix-nanobrew = nanobrewOptions;
-  options.modules.darwin.nanobrew = nanobrewOptions;
 
-  config = lib.mkIf (cfg.enable || modularCfg.enable) {
-    # If using modular namespace, copy those settings over to cfg
-    # (nix will merge them if both are set, but usually only one is used)
-    nix-nanobrew = lib.mkIf modularCfg.enable (lib.mkDefault modularCfg);
-
-    # Shell integrations: Add /opt/nanobrew/prefix/bin to PATH
-    programs.bash.interactiveShellInit = lib.mkIf cfg.enableBashIntegration ''
-      export PATH="/opt/nanobrew/prefix/bin:$PATH"
-    '';
-
-    programs.zsh.interactiveShellInit = lib.mkIf cfg.enableZshIntegration ''
-      export PATH="/opt/nanobrew/prefix/bin:$PATH"
-    '';
-
-    programs.fish.interactiveShellInit = lib.mkIf cfg.enableFishIntegration ''
-      fish_add_path /opt/nanobrew/prefix/bin
-    '';
+  config = lib.mkIf cfg.enable {
+    programs.bash.interactiveShellInit = lib.mkIf cfg.enableBashIntegration ''export PATH="/opt/nanobrew/prefix/bin:$PATH"'';
+    programs.zsh.interactiveShellInit = lib.mkIf cfg.enableZshIntegration ''export PATH="/opt/nanobrew/prefix/bin:$PATH"'';
+    programs.fish.interactiveShellInit = lib.mkIf cfg.enableFishIntegration ''fish_add_path /opt/nanobrew/prefix/bin'';
 
     environment.systemPackages = [ nb ];
-
-    environment.variables = {
-      NANOBREW_PREFIX = "/opt/nanobrew/prefix";
-    };
+    environment.variables.NANOBREW_PREFIX = "/opt/nanobrew/prefix";
 
     system.activationScripts.setup-nanobrew = {
       supportsDryRun = false;
-      text = ''
-        ${setupNanobrew}
-      '';
+      text = ''${setupNanobrew}'';
     };
 
-    # Bypass nix-darwin's Homebrew installation check
     system.checks.text = lib.mkIf (config.homebrew.enable or false) (
       lib.mkBefore ''
         # Ignore unused variable in nix-darwin versions without it
