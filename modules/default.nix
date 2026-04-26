@@ -173,8 +173,8 @@ in
     environment.systemPackages = [ nb ];
     environment.variables.NANOBREW_PREFIX = "/opt/nanobrew/prefix";
 
-    # Hook into postUserActivation as requested, or use system activation
-    system.activationScripts.postUserActivation.text = ''
+    # Use a standard activation script name since postUserActivation is removed
+    system.activationScripts.setup-nanobrew.text = ''
       ${setupNanobrew}
     '';
 
