@@ -7,14 +7,12 @@
   pkgs,
   lib,
   config,
-  options,
   ...
 }:
 let
   inherit (lib) types;
 
-  # Support both 'nix-nanobrew' and 'modules.darwin.nanobrew' (for dotfiles style)
-  cfg = if config.modules.darwin.nanobrew.enable or false then config.modules.darwin.nanobrew else config.nix-nanobrew;
+  cfg = config.nix-nanobrew;
 
   nb = cfg.package;
 
@@ -59,58 +57,53 @@ let
       sudo -u ${cfg.user} ${nb}/bin/nb bundle install "${nanobrewFile}"
     fi
   '';
-
-  nanobrewOptions = {
-    enable = lib.mkOption {
-      description = "Whether to install and configure nanobrew.";
-      type = types.bool;
-      default = false;
-    };
-    package = lib.mkOption {
-      description = "The nanobrew package to use.";
-      type = types.package;
-      default = pkgs.callPackage ../pkgs/nanobrew { };
-    };
-    user = lib.mkOption {
-      description = "The user who should own /opt/nanobrew.";
-      type = types.str;
-    };
-    group = lib.mkOption {
-      description = "The group that should own /opt/nanobrew.";
-      type = types.str;
-      default = "admin";
-    };
-    autoMigrate = lib.mkOption {
-      description = "Whether to automatically migrate existing Homebrew installations.";
-      type = types.bool;
-      default = false;
-    };
-    brews = lib.mkOption {
-      description = "List of formulae to install.";
-      type = types.listOf types.str;
-      default = [ ];
-    };
-    casks = lib.mkOption {
-      description = "List of casks to install.";
-      type = types.listOf types.str;
-      default = [ ];
-    };
-    enableBashIntegration = lib.mkEnableOption "nanobrew bash integration" // {
-      default = true;
-    };
-    enableFishIntegration = lib.mkEnableOption "nanobrew fish integration" // {
-      default = true;
-    };
-    enableZshIntegration = lib.mkEnableOption "nanobrew zsh integration" // {
-      default = true;
-    };
-  };
 in
 {
   options = {
-    nix-nanobrew = nanobrewOptions;
-    # Define modules.darwin.nanobrew as well to support user style
-    modules.darwin.nanobrew = nanobrewOptions;
+    nix-nanobrew = {
+      enable = lib.mkOption {
+        description = "Whether to install and configure nanobrew.";
+        type = types.bool;
+        default = false;
+      };
+      package = lib.mkOption {
+        description = "The nanobrew package to use.";
+        type = types.package;
+      };
+      user = lib.mkOption {
+        description = "The user who should own /opt/nanobrew.";
+        type = types.str;
+      };
+      group = lib.mkOption {
+        description = "The group that should own /opt/nanobrew.";
+        type = types.str;
+        default = "admin";
+      };
+      autoMigrate = lib.mkOption {
+        description = "Whether to automatically migrate existing Homebrew installations.";
+        type = types.bool;
+        default = false;
+      };
+      brews = lib.mkOption {
+        description = "List of formulae to install.";
+        type = types.listOf types.str;
+        default = [ ];
+      };
+      casks = lib.mkOption {
+        description = "List of casks to install.";
+        type = types.listOf types.str;
+        default = [ ];
+      };
+      enableBashIntegration = lib.mkEnableOption "nanobrew bash integration" // {
+        default = true;
+      };
+      enableFishIntegration = lib.mkEnableOption "nanobrew fish integration" // {
+        default = true;
+      };
+      enableZshIntegration = lib.mkEnableOption "nanobrew zsh integration" // {
+        default = true;
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {

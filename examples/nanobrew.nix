@@ -1,6 +1,6 @@
 # Genuine nanobrew configuration example
 #
-# This file demonstrates how to use the nix-nanobrew module
+# This file demonstrates how to use the nix-nanobrew module 
 # in a standard Nix configuration.
 
 { pkgs, inputs, ... }:
