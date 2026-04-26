@@ -17,7 +17,7 @@ let
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
 
   # Support both 'nix-nanobrew' and 'modules.darwin.nanobrew' (for dotfiles style)
-  cfg = if isDarwin && config ? modules.darwin.nanobrew then config.modules.darwin.nanobrew else config.nix-nanobrew;
+  cfg = if config.modules.darwin.nanobrew.enable or false then config.modules.darwin.nanobrew else config.nix-nanobrew;
 
   nb = cfg.package;
 
@@ -72,9 +72,7 @@ let
     package = lib.mkOption {
       description = "The nanobrew package to use.";
       type = types.package;
-      default = pkgs.callPackage ../pkgs/nanobrew { 
-        nanobrew-src = config.nix-nanobrew.nanobrew-src or null; # Fallback
-      };
+      default = pkgs.callPackage ../pkgs/nanobrew { };
     };
     user = lib.mkOption {
       description = "The user who should own /opt/nanobrew.";
@@ -114,8 +112,8 @@ in
 {
   options = {
     nix-nanobrew = nanobrewOptions;
-    # Define modules.darwin.nanobrew if on Darwin to match user style
-    modules.darwin.nanobrew = lib.mkIf isDarwin nanobrewOptions;
+    # Define modules.darwin.nanobrew to match user style
+    modules.darwin.nanobrew = nanobrewOptions;
   };
 
   config = lib.mkIf (cfg.enable) {

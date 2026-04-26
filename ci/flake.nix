@@ -15,11 +15,6 @@
       url = "github:edolstra/flake-compat";
       flake = false;
     };
-    # Keep zig-overlay for devShell if needed, but not for package build
-    zig-overlay = {
-      url = "github:mitchellh/zig-overlay";
-      inputs.nixpkgs.follows = "nixpkgs_unstable";
-    };
   };
   outputs =
     inputs:
@@ -117,16 +112,13 @@
           inherit ciTests;
           packages = forAllSystems (
             pkgs:
-            pkgs.callPackages (self + "/pkgs") {
-              inherit nanobrew-src;
-            }
+            pkgs.callPackages (self + "/pkgs") { }
           );
           devShell = forAllSystems (
             pkgs:
             pkgs.mkShell {
               nativeBuildInputs = with pkgs; [
                 nixfmt-rfc-style
-                inputs.zig-overlay.packages.${pkgs.system}."0.16.0"
               ];
 
               NANOBREW_SRC = nanobrew-src;
