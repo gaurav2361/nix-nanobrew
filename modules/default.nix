@@ -56,6 +56,57 @@ let
       # Run as the target user
       sudo -u ${cfg.user} ${nb}/bin/nb bundle install "${nanobrewFile}"
     fi
+
+    # 5. Upgrade
+    ${lib.optionalString cfg.onActivation.upgrade ''
+      echo "Upgrading all formulae and casks..."
+      sudo -u ${cfg.user} ${nb}/bin/nb upgrade
+    ''}
+
+    # 6. Cleanup
+    ${lib.optionalString (cfg.onActivation.cleanup == "uninstall") ''
+      echo "Cleaning up unlisted packages..."
+      
+      # Get desired names
+      DESIRED_BREWS=(${lib.concatStringsSep " " cfg.brews})
+      DESIRED_CASKS=(${lib.concatStringsSep " " cfg.casks})
+
+      # Cleanup formulae
+      # We iterate multiple times to handle transitive dependencies that become leaves after their dependents are removed
+      while true; do
+        REMOVED_ANY=false
+        # nb leaves output is "name version"
+        LEAVES=$(sudo -u ${cfg.user} ${nb}/bin/nb leaves | awk '{print $1}')
+        for pkg in $LEAVES; do
+          # Check if it's a brew (not a cask)
+          if [[ " ''${DESIRED_BREWS[@]} " =~ " ''${pkg} " ]]; then
+            continue
+          fi
+          
+          # Also check if it's in desired casks (rare but possible)
+          if [[ " ''${DESIRED_CASKS[@]} " =~ " ''${pkg} " ]]; then
+            continue
+          fi
+
+          echo "Removing unlisted formula: $pkg"
+          sudo -u ${cfg.user} ${nb}/bin/nb remove "$pkg"
+          REMOVED_ANY=true
+        done
+        
+        if [[ "$REMOVED_ANY" == "false" ]]; then
+          break
+        fi
+      done
+
+      # Cleanup casks
+      INSTALLED_CASKS=$(sudo -u ${cfg.user} ${nb}/bin/nb list | grep "(cask)" | awk '{print $1}')
+      for cask in $INSTALLED_CASKS; do
+        if [[ ! " ''${DESIRED_CASKS[@]} " =~ " ''${cask} " ]]; then
+          echo "Removing unlisted cask: $cask"
+          sudo -u ${cfg.user} ${nb}/bin/nb remove --cask "$cask"
+        fi
+      done
+    ''}
   '';
 in
 {
@@ -93,6 +144,23 @@ in
         description = "List of casks to install.";
         type = types.listOf types.str;
         default = [ ];
+      };
+      onActivation = {
+        autoUpdate = lib.mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether to update nanobrew formulas on activation. (Note: nanobrew handles this automatically via its API client)";
+        };
+        upgrade = lib.mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether to upgrade all formulae and casks on activation.";
+        };
+        cleanup = lib.mkOption {
+          type = types.enum [ "none" "uninstall" ];
+          default = "none";
+          description = "Whether to uninstall packages not listed in the configuration.";
+        };
       };
       enableBashIntegration = lib.mkEnableOption "nanobrew bash integration" // {
         default = true;

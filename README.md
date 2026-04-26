@@ -116,6 +116,9 @@ If you've already installed Homebrew with the official script, you can let `nix-
 - `autoMigrate`: Whether to automatically migrate existing Homebrew installations.
 - `brews`: List of formulae to install declaratively.
 - `casks`: List of casks to install declaratively.
+- `onActivation.autoUpdate`: Whether to update nanobrew formulas on activation.
+- `onActivation.upgrade`: Whether to upgrade all formulae and casks on activation.
+- `onActivation.cleanup`: Whether to uninstall packages not listed in the configuration. Use `"uninstall"` to enable.
 - `enableBashIntegration`: Add `/opt/nanobrew/prefix/bin` to PATH in Bash.
 - `enableZshIntegration`: Add `/opt/nanobrew/prefix/bin` to PATH in Zsh.
 - `enableFishIntegration`: Add `/opt/nanobrew/prefix/bin` to PATH in Fish.

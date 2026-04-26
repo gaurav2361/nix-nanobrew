@@ -1,6 +1,6 @@
 # Genuine nanobrew configuration example
 #
-# This file demonstrates how to use the nix-nanobrew module 
+# This file demonstrates how to use the nix-nanobrew module
 # in a standard Nix configuration.
 
 { pkgs, inputs, ... }:
@@ -13,6 +13,12 @@
     enable = true;
     user = "yourname"; # Replace with your actual username
     autoMigrate = true; # Set to true to import existing Homebrew packages
+
+    onActivation = {
+      autoUpdate = false;
+      cleanup = "uninstall";
+      upgrade = true;
+    };
 
     # Declarative package lists
     brews = [
