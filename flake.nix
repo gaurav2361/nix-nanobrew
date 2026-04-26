@@ -7,6 +7,10 @@
       url = "github:justrach/nanobrew";
       flake = false;
     };
+    zig-overlay = {
+      url = "github:mitchellh/zig-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -14,6 +18,7 @@
       self,
       nixpkgs,
       nanobrew-src,
+      zig-overlay,
     }:
     let
       supportedSystems = [
@@ -43,7 +48,10 @@
       };
 
       packages = forAllSystems (system: {
-        nanobrew = nixpkgs.legacyPackages.${system}.callPackage ./pkgs/nanobrew { };
+        nanobrew = nixpkgs.legacyPackages.${system}.callPackage ./pkgs/nanobrew {
+          inherit nanobrew-src;
+          zig = zig-overlay.packages.${system}."0.16.0";
+        };
         default = self.packages.${system}.nanobrew;
       });
 
