@@ -1,13 +1,13 @@
 # nix-nanobrew
 
 `nix-nanobrew` manages [nanobrew](https://github.com/justrach/nanobrew) installations on macOS and Linux using Nix.
-It pins the nanobrew version, manages the `/opt/nanobrew` prefix, and provides declarative package management.
+It provides genuine declarative management: removing a package from your config physically uninstalls it from the system.
 
 ## Why nix-nanobrew?
 
 - **Fastest Homebrew Alternative:** nanobrew is written in Zig and is up to 140x faster than Homebrew on warm installs.
-- **Genuine Declarative Management:** Unlike Homebrew which is often imperative, `nix-nanobrew` can automatically uninstall unlisted packages when `onActivation.cleanup = "uninstall"` is set.
-- **Zero Subprocess Overhead:** No Ruby runtime, no configuration sprawl. Just one static binary.
+- **Genuine Declarative Management:** Unlike Homebrew which is often imperative, `nix-nanobrew` automatically uninstalls unlisted packages when `onActivation.cleanup = "uninstall"` is set.
+- **Clean Configuration:** Matches the `nix-darwin` and `nix-homebrew` patterns exactly.
 
 ## Quick Start
 
@@ -33,10 +33,12 @@ It pins the nanobrew version, manages the `/opt/nanobrew` prefix, and provides d
         {
           nix-nanobrew = {
             enable = true;
-            user = "yourname"; # The user owning the prefix
+            user = "gaurav"; # The user owning the prefix
             
-            # Optional: Declarative cleanup
-            onActivation.cleanup = "uninstall";
+            onActivation = {
+              cleanup = "uninstall"; # This ensures unlisted packages are removed
+              upgrade = true;
+            };
 
             # Declarative packages
             brews = [ "jq" "wget" ];
@@ -55,26 +57,14 @@ It pins the nanobrew version, manages the `/opt/nanobrew` prefix, and provides d
 |--------|-------------|
 | `nix-nanobrew.enable` | Whether to install nanobrew. |
 | `nix-nanobrew.user` | The user who should own `/opt/nanobrew`. |
-| `nix-nanobrew.autoMigrate` | Automatically import existing Homebrew packages on first run. |
-| `nix-nanobrew.brews` | List of Homebrew formulae to manage. |
-| `nix-nanobrew.casks` | List of Homebrew casks to manage (macOS only). |
-| `nix-nanobrew.onActivation.cleanup` | Set to `"uninstall"` to remove packages not in the config. |
+| `nix-nanobrew.onActivation.cleanup` | Set to `"uninstall"` for genuine declarative management. |
 | `nix-nanobrew.onActivation.upgrade` | Upgrade all packages on each activation. |
+| `nix-nanobrew.brews` | List of Homebrew formulae. |
+| `nix-nanobrew.casks` | List of Homebrew casks (macOS only). |
 
-## Modular Dotfiles Style
+## Modular Dotfiles Support
 
-If you use a modular pattern like `lib.mkModule`, forward your custom options to `nix-nanobrew`:
-
-```nix
-config = lib.mkIf config.modules.darwin.nanobrew.enable {
-  nix-nanobrew = {
-    enable = true;
-    user = "gaurav";
-    autoMigrate = true;
-    # ...
-  };
-};
-```
+If you use a modular pattern like `modules.darwin.<name>.enable`, this module natively supports the `modules.darwin.nanobrew` namespace with the exact same options, so you don't need any boilerplate bridges.
 
 ## License
 

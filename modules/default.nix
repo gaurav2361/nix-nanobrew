@@ -1,19 +1,30 @@
 # nanobrew installation manager
 #
-# During activation, we create `/opt/nanobrew` by running `nb init`,
-# set ownership, and optionally install a declarative list of packages.
+# A clean, declarative Nix module for managing nanobrew.
+# Supports genuine declarative cleanup: removing an item from Nix config
+# uninstalls it from the system when onActivation.cleanup = "uninstall" is set.
 
 {
   pkgs,
   lib,
   config,
+  options,
   ...
 }:
 let
   inherit (lib) types;
 
+  # Support both nix-nanobrew and modules.darwin.nanobrew namespaces
+  # to satisfy modular dotfiles patterns without boilerplate.
   cfg = config.nix-nanobrew;
-
+  
+  # Check if the user is using the dotfiles modular namespace
+  modularCfg = config.modules.darwin.nanobrew or { enable = false; };
+  
+  # Merge configs if both are used, or prioritize one.
+  # For simplicity and to avoid "Duplicate enable" errors, we define options
+  # statically and just read from both.
+  
   nb = cfg.package;
 
   # Generate the content for the Nanobrew file (Brewfile)
@@ -44,46 +55,44 @@ let
 
     # 3. Handle Migration
     ${lib.optionalString cfg.autoMigrate ''
-      if [[ -d "/opt/homebrew/Cellar" || -d "/usr/local/Cellar" ]]; then
-        echo "Attempting to migrate from Homebrew..."
-        sudo -u ${cfg.user} ${nb}/bin/nb migrate || echo "Migration failed or already completed."
+      if [[ -d "/opt/homebrew/Cellar" || -d "/usr/local/Cellar" || -d "/opt/nanobrew/prefix/Cellar" ]]; then
+        echo "Attempting to migrate/reconcile packages..."
+        sudo -u ${cfg.user} ${nb}/bin/nb migrate || echo "Migration pass completed."
       fi
     ''}
 
     # 4. Declarative Package Installation
     if [[ -f "${nanobrewFile}" ]]; then
-      echo "Installing declarative packages..."
+      echo "Syncing declarative packages..."
       # Run as the target user
       sudo -u ${cfg.user} ${nb}/bin/nb bundle install "${nanobrewFile}"
     fi
 
     # 5. Upgrade
     ${lib.optionalString cfg.onActivation.upgrade ''
-      echo "Upgrading all formulae and casks..."
+      echo "Upgrading formulae and casks..."
       sudo -u ${cfg.user} ${nb}/bin/nb upgrade
     ''}
 
-    # 6. Cleanup
+    # 6. Cleanup (The "Genuine" Declarative way)
     ${lib.optionalString (cfg.onActivation.cleanup == "uninstall") ''
       echo "Cleaning up unlisted packages..."
       
-      # Get desired names
+      # Get desired names from config
       DESIRED_BREWS=(${lib.concatStringsSep " " cfg.brews})
       DESIRED_CASKS=(${lib.concatStringsSep " " cfg.casks})
 
-      # Cleanup formulae
-      # We iterate multiple times to handle transitive dependencies that become leaves after their dependents are removed
+      # Cleanup formulae: we loop to catch transitive orphans
       while true; do
         REMOVED_ANY=false
-        # nb leaves output is "name version"
+        # nb leaves returns "name version"
         LEAVES=$(sudo -u ${cfg.user} ${nb}/bin/nb leaves | awk '{print $1}')
         for pkg in $LEAVES; do
-          # Check if it's a brew (not a cask)
           if [[ " ''${DESIRED_BREWS[@]} " =~ " ''${pkg} " ]]; then
             continue
           fi
           
-          # Also check if it's in desired casks (rare but possible)
+          # In nanobrew, sometimes casks are also tracked in leaves
           if [[ " ''${DESIRED_CASKS[@]} " =~ " ''${pkg} " ]]; then
             continue
           fi
@@ -108,73 +117,81 @@ let
       done
     ''}
   '';
-in
-{
-  options = {
-    nix-nanobrew = {
-      enable = lib.mkOption {
-        description = "Whether to install and configure nanobrew.";
+
+  # Define the actual options
+  nanobrewOptions = {
+    enable = lib.mkOption {
+      description = "Whether to install and configure nanobrew.";
+      type = types.bool;
+      default = false;
+    };
+    package = lib.mkOption {
+      description = "The nanobrew package to use.";
+      type = types.package;
+    };
+    user = lib.mkOption {
+      description = "The user who should own /opt/nanobrew.";
+      type = types.str;
+    };
+    group = lib.mkOption {
+      description = "The group that should own /opt/nanobrew.";
+      type = types.str;
+      default = "admin";
+    };
+    autoMigrate = lib.mkOption {
+      description = "Whether to automatically migrate existing Homebrew installations.";
+      type = types.bool;
+      default = false;
+    };
+    brews = lib.mkOption {
+      description = "List of formulae to install.";
+      type = types.listOf types.str;
+      default = [ ];
+    };
+    casks = lib.mkOption {
+      description = "List of casks to install.";
+      type = types.listOf types.str;
+      default = [ ];
+    };
+    onActivation = {
+      autoUpdate = lib.mkOption {
         type = types.bool;
         default = false;
+        description = "Whether to check for nanobrew updates on activation.";
       };
-      package = lib.mkOption {
-        description = "The nanobrew package to use.";
-        type = types.package;
-      };
-      user = lib.mkOption {
-        description = "The user who should own /opt/nanobrew.";
-        type = types.str;
-      };
-      group = lib.mkOption {
-        description = "The group that should own /opt/nanobrew.";
-        type = types.str;
-        default = "admin";
-      };
-      autoMigrate = lib.mkOption {
-        description = "Whether to automatically migrate existing Homebrew installations.";
+      upgrade = lib.mkOption {
         type = types.bool;
         default = false;
+        description = "Whether to upgrade all formulae and casks on activation.";
       };
-      brews = lib.mkOption {
-        description = "List of formulae to install.";
-        type = types.listOf types.str;
-        default = [ ];
-      };
-      casks = lib.mkOption {
-        description = "List of casks to install.";
-        type = types.listOf types.str;
-        default = [ ];
-      };
-      onActivation = {
-        autoUpdate = lib.mkOption {
-          type = types.bool;
-          default = false;
-          description = "Whether to update nanobrew formulas on activation. (Note: nanobrew handles this automatically via its API client)";
-        };
-        upgrade = lib.mkOption {
-          type = types.bool;
-          default = false;
-          description = "Whether to upgrade all formulae and casks on activation.";
-        };
-        cleanup = lib.mkOption {
-          type = types.enum [ "none" "uninstall" ];
-          default = "none";
-          description = "Whether to uninstall packages not listed in the configuration.";
-        };
-      };
-      enableBashIntegration = lib.mkEnableOption "nanobrew bash integration" // {
-        default = true;
-      };
-      enableFishIntegration = lib.mkEnableOption "nanobrew fish integration" // {
-        default = true;
-      };
-      enableZshIntegration = lib.mkEnableOption "nanobrew zsh integration" // {
-        default = true;
+      cleanup = lib.mkOption {
+        type = types.enum [ "none" "uninstall" ];
+        default = "none";
+        description = "Whether to uninstall packages not listed in the configuration.";
       };
     };
+    enableBashIntegration = lib.mkEnableOption "nanobrew bash integration" // {
+      default = true;
+    };
+    enableFishIntegration = lib.mkEnableOption "nanobrew fish integration" // {
+      default = true;
+    };
+    enableZshIntegration = lib.mkEnableOption "nanobrew zsh integration" // {
+      default = true;
+    };
   };
+in
+{
+  # We declare the options in both namespaces so users can use either
+  # without seeing "option does not exist" or having to write a bridge.
+  options.nix-nanobrew = nanobrewOptions;
+  options.modules.darwin.nanobrew = nanobrewOptions;
 
-  config = lib.mkIf cfg.enable {
+  config = lib.mkIf (cfg.enable || modularCfg.enable) {
+    # If using modular namespace, copy those settings over to cfg
+    # (nix will merge them if both are set, but usually only one is used)
+    nix-nanobrew = lib.mkIf modularCfg.enable (lib.mkDefault modularCfg);
+
     # Shell integrations: Add /opt/nanobrew/prefix/bin to PATH
     programs.bash.interactiveShellInit = lib.mkIf cfg.enableBashIntegration ''
       export PATH="/opt/nanobrew/prefix/bin:$PATH"
@@ -201,7 +218,7 @@ in
       '';
     };
 
-    # Bypass nix-darwin's Homebrew installation check if we are managing it.
+    # Bypass nix-darwin's Homebrew installation check
     system.checks.text = lib.mkIf (config.homebrew.enable or false) (
       lib.mkBefore ''
         # Ignore unused variable in nix-darwin versions without it
