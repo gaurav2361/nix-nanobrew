@@ -173,8 +173,8 @@ in
     environment.systemPackages = [ nb ];
     environment.variables.NANOBREW_PREFIX = "/opt/nanobrew/prefix";
 
-    # Use a standard activation script name since postUserActivation is removed
-    system.activationScripts.setup-nanobrew.text = ''
+    # Hook into postActivation so it actually runs during nix-darwin rebuild
+    system.activationScripts.postActivation.text = ''
       ${setupNanobrew}
     '';
 
