@@ -1,9 +1,10 @@
 {
   callPackage,
+  zig ? null,
   nanobrew-src ? null,
 }:
 {
   nanobrew = callPackage ./nanobrew {
-    inherit nanobrew-src;
+    inherit zig nanobrew-src;
   };
 }

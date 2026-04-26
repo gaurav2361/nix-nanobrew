@@ -116,7 +116,7 @@
           inherit ciTests;
           packages = forAllSystems (
             pkgs:
-            pkgs.callPackages (self + "/pkgs") {
+            pkgs.callPackage (self + "/pkgs") {
               inherit nanobrew-src;
               zig = inputs.zig-overlay.packages.${pkgs.system}."0.16.0";
             }

@@ -13,8 +13,7 @@
 let
   inherit (lib) types;
 
-  # Support both 'nix-nanobrew' and 'modules.darwin.nanobrew' (for dotfiles style)
-  cfg = if config.modules.darwin.nanobrew.enable or false then config.modules.darwin.nanobrew else config.nix-nanobrew;
+  cfg = config.nix-nanobrew;
 
   nb = cfg.package;
 
@@ -69,7 +68,6 @@ let
     package = lib.mkOption {
       description = "The nanobrew package to use.";
       type = types.package;
-      default = pkgs.callPackage ../pkgs/nanobrew { };
     };
     user = lib.mkOption {
       description = "The user who should own /opt/nanobrew.";
@@ -112,40 +110,47 @@ in
     modules.darwin.nanobrew = nanobrewOptions;
   };
 
-  config = lib.mkIf cfg.enable {
-    # Shell integrations: Add /opt/nanobrew/prefix/bin to PATH
-    programs.bash.interactiveShellInit = lib.mkIf cfg.enableBashIntegration ''
-      export PATH="/opt/nanobrew/prefix/bin:$PATH"
-    '';
+  config = lib.mkMerge [
+    # Alias modules.darwin.nanobrew to nix-nanobrew if used
+    (lib.mkIf (config.modules.darwin.nanobrew.enable or false) {
+      nix-nanobrew = config.modules.darwin.nanobrew;
+    })
 
-    programs.zsh.interactiveShellInit = lib.mkIf cfg.enableZshIntegration ''
-      export PATH="/opt/nanobrew/prefix/bin:$PATH"
-    '';
-
-    programs.fish.interactiveShellInit = lib.mkIf cfg.enableFishIntegration ''
-      fish_add_path /opt/nanobrew/prefix/bin
-    '';
-
-    environment.systemPackages = [ nb ];
-
-    environment.variables = {
-      NANOBREW_PREFIX = "/opt/nanobrew/prefix";
-    };
-
-    system.activationScripts.setup-nanobrew = {
-      supportsDryRun = false;
-      text = ''
-        ${setupNanobrew}
+    (lib.mkIf cfg.enable {
+      # Shell integrations: Add /opt/nanobrew/prefix/bin to PATH
+      programs.bash.interactiveShellInit = lib.mkIf cfg.enableBashIntegration ''
+        export PATH="/opt/nanobrew/prefix/bin:$PATH"
       '';
-    };
 
-    # Bypass nix-darwin's Homebrew installation check if we are managing it.
-    system.checks.text = lib.mkIf (config.homebrew.enable or false) (
-      lib.mkBefore ''
-        # Ignore unused variable in nix-darwin versions without it
-        # shellcheck disable=SC2034
-        INSTALLING_HOMEBREW=1
-      ''
-    );
-  };
+      programs.zsh.interactiveShellInit = lib.mkIf cfg.enableZshIntegration ''
+        export PATH="/opt/nanobrew/prefix/bin:$PATH"
+      '';
+
+      programs.fish.interactiveShellInit = lib.mkIf cfg.enableFishIntegration ''
+        fish_add_path /opt/nanobrew/prefix/bin
+      '';
+
+      environment.systemPackages = [ nb ];
+
+      environment.variables = {
+        NANOBREW_PREFIX = "/opt/nanobrew/prefix";
+      };
+
+      system.activationScripts.setup-nanobrew = {
+        supportsDryRun = false;
+        text = ''
+          ${setupNanobrew}
+        '';
+      };
+
+      # Bypass nix-darwin's Homebrew installation check if we are managing it.
+      system.checks.text = lib.mkIf (config.homebrew.enable or false) (
+        lib.mkBefore ''
+          # Ignore unused variable in nix-darwin versions without it
+          # shellcheck disable=SC2034
+          INSTALLING_HOMEBREW=1
+        ''
+      );
+    })
+  ];
 }
