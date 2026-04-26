@@ -96,7 +96,7 @@ If you've already installed Homebrew with the official script, you can let `nix-
 {
   nix-nanobrew = {
     enable = true;
-    user = "gaurav";
+    user = "yourname";
   };
 
   # This standard nix-darwin block will now be handled by nanobrew!
