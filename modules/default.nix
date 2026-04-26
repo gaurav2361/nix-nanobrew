@@ -25,41 +25,53 @@ let
 
   setupNanobrew = pkgs.writeShellScript "setup-nanobrew" ''
     set -euo pipefail
+    
+    # Ensure a proper PATH for system tools
+    export PATH="/run/current-system/sw/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 
-    NIX_NANOBREW_UID=$(id -u "${cfg.user}" || (echo "Error: Failed to get UID of ${cfg.user}" >&2; exit 1))
+    USER="${cfg.user}"
+    GROUP="${cfg.group}"
+    
+    NIX_NANOBREW_UID=$(id -u "$USER" || (echo "Error: Failed to get UID of $USER" >&2; exit 1))
     
     if [[ "$(uname)" == "Darwin" ]]; then
-      NIX_NANOBREW_GID=$(dscl . -read "/Groups/${cfg.group}" PrimaryGroupID 2>/dev/null | awk '($1 == "PrimaryGroupID:") { print $2 }' || id -g "${cfg.user}")
+      NIX_NANOBREW_GID=$(dscl . -read "/Groups/$GROUP" PrimaryGroupID 2>/dev/null | awk '{print $2}' || id -g "$USER")
     else
-      NIX_NANOBREW_GID=$(getent group "${cfg.group}" | cut -d: -f3 || id -g "${cfg.user}")
+      NIX_NANOBREW_GID=$(getent group "$GROUP" | cut -d: -f3 || id -g "$USER")
     fi
 
-    echo "setting up nanobrew (/opt/nanobrew)..."
+    echo "━━━ nanobrew: setting up /opt/nanobrew ━━━"
 
-    # 1. Initialize nanobrew
-    sudo ${nb}/bin/nb init
+    # 1. Initialize nanobrew (creates structure)
+    if [[ ! -d "/opt/nanobrew" ]]; then
+      echo "Initializing /opt/nanobrew..."
+      mkdir -p /opt/nanobrew
+    fi
+    ${nb}/bin/nb init
 
     # 2. Ensure ownership
-    sudo chown -R $NIX_NANOBREW_UID:$NIX_NANOBREW_GID /opt/nanobrew
+    echo "Ensuring ownership for $USER:$GROUP..."
+    chown -R "$NIX_NANOBREW_UID:$NIX_NANOBREW_GID" /opt/nanobrew
 
     # 3. Handle Migration
     ${lib.optionalString cfg.autoMigrate ''
       if [[ -d "/opt/homebrew/Cellar" || -d "/usr/local/Cellar" || -d "/opt/nanobrew/prefix/Cellar" ]]; then
-        echo "Attempting to migrate/reconcile packages..."
-        sudo -u ${cfg.user} ${nb}/bin/nb migrate || echo "Migration pass completed."
+        echo "Reconciling packages (migrate)..."
+        sudo -H -u "$USER" ${nb}/bin/nb migrate || echo "Migration pass completed with warnings."
       fi
     ''}
 
     # 4. Declarative Package Installation
     if [[ -f "${nanobrewFile}" ]]; then
-      echo "Syncing declarative packages..."
-      sudo -u ${cfg.user} ${nb}/bin/nb bundle install "${nanobrewFile}"
+      echo "Syncing declarative packages (bundle install)..."
+      # Use -H to set HOME to user's home, and -u for the user
+      sudo -H -u "$USER" ${nb}/bin/nb bundle install "${nanobrewFile}"
     fi
 
     # 5. Upgrade
     ${lib.optionalString cfg.onActivation.upgrade ''
       echo "Upgrading formulae and casks..."
-      sudo -u ${cfg.user} ${nb}/bin/nb upgrade
+      sudo -H -u "$USER" ${nb}/bin/nb upgrade
     ''}
 
     # 6. Cleanup (The "Genuine" Declarative way)
@@ -69,28 +81,35 @@ let
       DESIRED_BREWS=(${lib.concatStringsSep " " cfg.brews})
       DESIRED_CASKS=(${lib.concatStringsSep " " cfg.casks})
 
+      # Cleanup formulae: we loop to catch transitive orphans
       while true; do
         REMOVED_ANY=false
-        LEAVES=$(sudo -u ${cfg.user} ${nb}/bin/nb leaves | awk '{print $1}')
+        # nb leaves returns "name version"
+        LEAVES=$(sudo -H -u "$USER" ${nb}/bin/nb leaves | awk '{print $1}')
         for pkg in $LEAVES; do
           if [[ " ''${DESIRED_BREWS[@]} " =~ " ''${pkg} " ]] || [[ " ''${DESIRED_CASKS[@]} " =~ " ''${pkg} " ]]; then
             continue
           fi
           echo "Removing unlisted formula: $pkg"
-          sudo -u ${cfg.user} ${nb}/bin/nb remove "$pkg"
+          sudo -H -u "$USER" ${nb}/bin/nb remove "$pkg"
           REMOVED_ANY=true
         done
-        if [[ "$REMOVED_ANY" == "false" ]]; then break; fi
+        
+        if [[ "$REMOVED_ANY" == "false" ]]; then
+          break
+        fi
       done
 
-      INSTALLED_CASKS=$(sudo -u ${cfg.user} ${nb}/bin/nb list | grep "(cask)" | awk '{print $1}')
+      # Cleanup casks
+      INSTALLED_CASKS=$(sudo -H -u "$USER" ${nb}/bin/nb list | grep "(cask)" | awk '{print $1}')
       for cask in $INSTALLED_CASKS; do
         if [[ ! " ''${DESIRED_CASKS[@]} " =~ " ''${cask} " ]]; then
           echo "Removing unlisted cask: $cask"
-          sudo -u ${cfg.user} ${nb}/bin/nb remove --cask "$cask"
+          sudo -H -u "$USER" ${nb}/bin/nb remove --cask "$cask"
         fi
       done
     ''}
+    echo "━━━ nanobrew: setup complete ━━━"
   '';
 in
 {
@@ -154,11 +173,12 @@ in
     environment.systemPackages = [ nb ];
     environment.variables.NANOBREW_PREFIX = "/opt/nanobrew/prefix";
 
-    system.activationScripts.setup-nanobrew = {
-      supportsDryRun = false;
-      text = ''${setupNanobrew}'';
-    };
+    # Hook into postUserActivation as requested, or use system activation
+    system.activationScripts.postUserActivation.text = ''
+      ${setupNanobrew}
+    '';
 
+    # Bypass nix-darwin's Homebrew installation check
     system.checks.text = lib.mkIf (config.homebrew.enable or false) (
       lib.mkBefore ''
         # Ignore unused variable in nix-darwin versions without it
