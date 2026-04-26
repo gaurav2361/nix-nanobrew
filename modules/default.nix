@@ -29,7 +29,7 @@ let
     NIX_NANOBREW_UID=$(id -u "${cfg.user}" || (echo "Error: Failed to get UID of ${cfg.user}" >&2; exit 1))
     
     if [[ "$(uname)" == "Darwin" ]]; then
-      NIX_NANOBREW_GID=$(dscl . -read "/Groups/${cfg.group}" PrimaryGroupID 2>/dev/null | awk '{print $2}' || id -g "${cfg.user}")
+      NIX_NANOBREW_GID=$(dscl . -read "/Groups/${cfg.group}" PrimaryGroupID 2>/dev/null | awk '($1 == "PrimaryGroupID:") { print $2 }' || id -g "${cfg.user}")
     else
       NIX_NANOBREW_GID=$(getent group "${cfg.group}" | cut -d: -f3 || id -g "${cfg.user}")
     fi

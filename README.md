@@ -1,132 +1,81 @@
 # nix-nanobrew
 
-`nix-nanobrew` manages [nanobrew](https://github.com/justrach/nanobrew) installations on macOS and Linux using [nix-darwin](https://github.com/LnL7/nix-darwin) or NixOS.
-It builds `nanobrew` from source and optionally allows for declarative specification of brews and casks.
+`nix-nanobrew` manages [nanobrew](https://github.com/justrach/nanobrew) installations on macOS and Linux using Nix.
+It pins the nanobrew version, manages the `/opt/nanobrew` prefix, and provides declarative package management.
 
-`nix-nanobrew` installs the `nb` binary and manages the `/opt/nanobrew` prefix. It also provides a compatibility `brew` launcher that redirects to `nb`, allowing you to use existing Homebrew declarative configurations seamlessly.
+## Why nix-nanobrew?
+
+- **Fastest Homebrew Alternative:** nanobrew is written in Zig and is up to 140x faster than Homebrew on warm installs.
+- **Genuine Declarative Management:** Unlike Homebrew which is often imperative, `nix-nanobrew` can automatically uninstall unlisted packages when `onActivation.cleanup = "uninstall"` is set.
+- **Zero Subprocess Overhead:** No Ruby runtime, no configuration sprawl. Just one static binary.
 
 ## Quick Start
 
-First of all, you must have [nix-darwin](https://github.com/LnL7/nix-darwin) (or NixOS) configured already.
-Add the following to your Flake inputs:
+### 1. Add to your Flake inputs
 
 ```nix
 {
   inputs = {
     nix-nanobrew.url = "github:gaurav2361/nix-nanobrew";
-    # (...)
+    # ...
   };
 }
 ```
 
-### A. New Installation
-
-If you haven't installed nanobrew before, use the following configuration:
+### 2. Configure the Module
 
 ```nix
 {
-  output = { self, nixpkgs, darwin, nix-nanobrew, ... }: {
+  outputs = { self, nix-nanobrew, ... }: {
     darwinConfigurations.macbook = {
-      # (...)
-      modules = [
-        nix-nanobrew.darwinModules.nix-nanobrew
-        {
-          nix-nanobrew = {
-            # Install nanobrew and initialize /opt/nanobrew
-            enable = true;
-
-            # User owning the nanobrew prefix
-            user = "yourname";
-
-            # Optional: Declarative package management
-            brews = [
-              "jq"
-              "wget"
-              "netbirdio/tap/netbird" # Taps work natively without a separate 'taps' option
-            ];
-            casks = [
-              "raycast"
-              "spotify"
-            ];
-          };
-        }
-      ];
-    };
-  };
-}
-```
-
-Once activated, the `nb` binary and a compatibility `brew` launcher will be created. `/opt/nanobrew/prefix/bin` will be automatically added to your shell's PATH.
-
-### B. Existing Homebrew Installation
-
-If you've already installed Homebrew with the official script, you can let `nix-nanobrew` automatically migrate your packages:
-
-```nix
-{
-  output = { self, darwin, nix-nanobrew, ... }: {
-    darwinConfigurations.macbook = {
-      # (...)
       modules = [
         nix-nanobrew.darwinModules.nix-nanobrew
         {
           nix-nanobrew = {
             enable = true;
-            user = "yourname";
+            user = "yourname"; # The user owning the prefix
+            
+            # Optional: Declarative cleanup
+            onActivation.cleanup = "uninstall";
 
-            # Automatically run 'nb migrate' to import packages from Homebrew
-            autoMigrate = true;
+            # Declarative packages
+            brews = [ "jq" "wget" ];
+            casks = [ "raycast" "spotify" ];
           };
         }
       ];
     };
-  };
-}
-```
-
-## Declarative Packages
-
-`nanobrew` is "tap-less" by design. It fetches Ruby formulas directly from GitHub on-the-fly. This means you don't need a separate `taps` attribute; simply use the full name (e.g., `user/tap/formula`) in your `brews` or `casks` list.
-
-### Compatibility with `homebrew.*` options
-
-`nix-nanobrew` provides a unified `brew` launcher that intercepts calls to `brew bundle`. This means your existing `nix-darwin` Homebrew configuration will often work without changes:
-
-```nix
-{
-  nix-nanobrew = {
-    enable = true;
-    user = "yourname";
-  };
-
-  # This standard nix-darwin block will now be handled by nanobrew!
-  homebrew = {
-    enable = true;
-    brews = [ "ripgrep" ];
-    casks = [ "firefox" ];
   };
 }
 ```
 
 ## Options
 
-- `enable`: Whether to install and configure nanobrew.
-- `user`: The user who should own `/opt/nanobrew`. **Required**.
-- `group`: The group that should own `/opt/nanobrew`. Defaults to `admin`.
-- `autoMigrate`: Whether to automatically migrate existing Homebrew installations.
-- `brews`: List of formulae to install declaratively.
-- `casks`: List of casks to install declaratively.
-- `onActivation.autoUpdate`: Whether to update nanobrew formulas on activation.
-- `onActivation.upgrade`: Whether to upgrade all formulae and casks on activation.
-- `onActivation.cleanup`: Whether to uninstall packages not listed in the configuration. Use `"uninstall"` to enable.
-- `enableBashIntegration`: Add `/opt/nanobrew/prefix/bin` to PATH in Bash.
-- `enableZshIntegration`: Add `/opt/nanobrew/prefix/bin` to PATH in Zsh.
-- `enableFishIntegration`: Add `/opt/nanobrew/prefix/bin` to PATH in Fish.
+| Option | Description |
+|--------|-------------|
+| `nix-nanobrew.enable` | Whether to install nanobrew. |
+| `nix-nanobrew.user` | The user who should own `/opt/nanobrew`. |
+| `nix-nanobrew.autoMigrate` | Automatically import existing Homebrew packages on first run. |
+| `nix-nanobrew.brews` | List of Homebrew formulae to manage. |
+| `nix-nanobrew.casks` | List of Homebrew casks to manage (macOS only). |
+| `nix-nanobrew.onActivation.cleanup` | Set to `"uninstall"` to remove packages not in the config. |
+| `nix-nanobrew.onActivation.upgrade` | Upgrade all packages on each activation. |
 
-## Why nanobrew?
+## Modular Dotfiles Style
 
-`nanobrew` is a fast, Zig-based alternative to Homebrew.
-- **Speed**: Warm installs in ~3.5ms, parallel everything.
-- **Simplicity**: Single static binary, no Ruby runtime required.
-- **Modern**: Uses APFS clonefile for zero-copy materialization.
-- **Cross-Platform**: Works natively on both macOS and Linux.
+If you use a modular pattern like `lib.mkModule`, forward your custom options to `nix-nanobrew`:
+
+```nix
+config = lib.mkIf config.modules.darwin.nanobrew.enable {
+  nix-nanobrew = {
+    enable = true;
+    user = "gaurav";
+    autoMigrate = true;
+    # ...
+  };
+};
+```
+
+## License
+
+MIT

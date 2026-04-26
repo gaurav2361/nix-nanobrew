@@ -1,78 +1,67 @@
-# Genuine nanobrew configuration example
+# Genuine nanobrew configuration for modular dotfiles
 #
-# This file demonstrates how to use the nix-nanobrew module
-# in a standard Nix configuration.
+# This file is intended to be used in a nix-darwin setup (e.g., as modules/darwin/nanobrew.nix)
+# It bridges your custom 'modules.darwin.nanobrew' namespace to 'nix-nanobrew'.
 
-{ pkgs, inputs, ... }:
 {
-  # 1. Import the nix-nanobrew module from flake inputs
-  imports = [ inputs.nix-nanobrew.darwinModules.nix-nanobrew ];
-
-  # 2. Configure nix-nanobrew options directly
-  nix-nanobrew = {
-    enable = true;
-    user = "yourname"; # Replace with your actual username
-    autoMigrate = true; # Set to true to import existing Homebrew packages
-
-    onActivation = {
-      autoUpdate = false;
-      cleanup = "uninstall";
-      upgrade = true;
+  pkgs,
+  inputs,
+  config,
+  lib,
+  ...
+}:
+let
+  cfg = config.modules.darwin.nanobrew;
+  # Fallback to primaryUser if on nix-darwin, otherwise generic
+  defaultUser = if config.system ? primaryUser then config.system.primaryUser else "yourname";
+in
+{
+  options.modules.darwin.nanobrew = {
+    enable = lib.mkEnableOption "macOS nanobrew package manager setup";
+    user = lib.mkOption {
+      type = lib.types.str;
+      default = defaultUser;
+      description = "User owning the /opt/nanobrew directory";
     };
-
-    # Declarative package lists
-    brews = [
-      "mas"
-      "mole"
-      "sheets"
-      "libiconv"
-      "tesseract"
-      "gemini-cli"
-      "tree-sitter"
-      "tesseract-lang"
-      "tree-sitter-cli"
-      "netbirdio/tap/netbird"
-      "Arthur-Ficial/tap/apfel"
-    ];
-
-    casks = [
-      "iina"
-      "blip"
-      "bruno"
-      "motrix"
-      "raycast"
-      "spotify"
-      "obsidian"
-      "antigravity"
-      "google-drive"
-      "google-chrome"
-      "brave-browser"
-      "keyboardcleantool"
-      "mhaeuser/mhaeuser/battery-toolkit"
-    ];
+    autoMigrate = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Automatically migrate from existing Homebrew";
+    };
+    cleanup = lib.mkOption {
+      type = lib.types.enum [
+        "none"
+        "uninstall"
+      ];
+      default = "uninstall";
+      description = "Whether to uninstall unlisted packages";
+    };
   };
 
-  # 3. Extra system setup (optional)
-  environment.systemPackages = with pkgs; [ pkg-config ];
-  environment.systemPath = [ "/opt/nanobrew/prefix/bin" ];
+  config = lib.mkIf cfg.enable {
+    # Forward to the genuine nix-nanobrew module
+    nix-nanobrew = {
+      enable = true;
+      user = cfg.user;
+      autoMigrate = cfg.autoMigrate;
+      onActivation.cleanup = cfg.cleanup;
+      onActivation.upgrade = true;
 
-  # 4. Handle Xcode prerequisites (standard pattern)
-  system.activationScripts.preActivation.text = ''
-    echo "━━━ Checking Prerequisites ━━━"
-    if ! xcode-select -p &> /dev/null; then
-      echo "Installing Xcode Command Line Tools..."
-      touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-      PROD=$(softwareupdate -l | grep "\*.*Command Line" | tail -n 1 | sed 's/^[^C]* //')
-      if [ -n "$PROD" ]; then
-        softwareupdate -i "$PROD" --verbose
-        echo "✓ Xcode Command Line Tools: Installed"
-      fi
-      rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-    fi
+      # Package lists
+      brews = [
+        "jq"
+        "wget"
+        "ffmpeg"
+        "ripgrep"
+      ];
 
-    if ! /usr/bin/pgrep -q oahd; then
-      echo "Installing Rosetta 2..."
-      sudo softwareupdate --install-rosetta --agree-to-license 2>/dev/null || true
-    fi
-  '';
+      casks = [
+        "iina"
+        "raycast"
+        "spotify"
+        "obsidian"
+        "visual-studio-code"
+      ];
+    };
+  };
 }
