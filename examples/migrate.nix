@@ -2,9 +2,8 @@
 
 { pkgs, ... }:
 {
-  nix-homebrew = {
+  nix-nanobrew = {
     enable = true;
-    enableRosetta = true;
     autoMigrate = true;
     user = "yourname";
   };

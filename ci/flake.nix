@@ -24,6 +24,8 @@
       supportedSystems = [
         "x86_64-darwin"
         "aarch64-darwin"
+        "x86_64-linux"
+        "aarch64-linux"
       ];
 
       releases = {
@@ -40,6 +42,8 @@
       githubPlatforms = {
         "aarch64-darwin" = "macos-26";
         "x86_64-darwin" = "macos-26";
+        "x86_64-linux" = "ubuntu-latest";
+        "aarch64-linux" = "ubuntu-latest";
       };
 
       matrix =
@@ -68,7 +72,7 @@
         f: lib.genAttrs supportedSystems (system: f inputs.nixpkgs_unstable.legacyPackages.${system});
 
       makeCi =
-        { self, brew-src }:
+        { self, nanobrew-src }:
         let
           assembleTest =
             {
@@ -88,13 +92,17 @@
 
           ciTests = lib.genAttrs supportedSystems (
             system:
-            lib.mapAttrs (
-              name:
-              { release, test }:
-              assembleTest {
-                inherit system release test;
-              }
-            ) matrix
+            if lib.hasSuffix "-linux" system then
+              { }
+            # nix-darwin tests only run on darwin
+            else
+              lib.mapAttrs (
+                name:
+                { release, test }:
+                assembleTest {
+                  inherit system release test;
+                }
+              ) matrix
           );
           ciScripts = lib.mapAttrs (
             system: tests: lib.mapAttrs (name: test: test.config.system.build.ci-script) tests
@@ -105,7 +113,7 @@
           packages = forAllSystems (
             pkgs:
             pkgs.callPackages (self + "/pkgs") {
-              inherit brew-src;
+              inherit nanobrew-src;
             }
           );
           devShell = forAllSystems (
@@ -113,9 +121,10 @@
             pkgs.mkShell {
               nativeBuildInputs = with pkgs; [
                 nixfmt-rfc-style
+                zig
               ];
 
-              BREW_SRC = brew-src;
+              NANOBREW_SRC = nanobrew-src;
             }
           );
           githubActions = inputs.nix-github-actions.lib.mkGithubMatrix {

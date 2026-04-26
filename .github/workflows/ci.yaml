@@ -35,6 +35,6 @@ jobs:
 
       - name: Run test
         run: |
-          export NIX_HOMEBREW_CI=1
+          export NIX_NANOBREW_CI=1
           ci_script=$(nix build -L '.#${{ matrix.attr }}' --print-out-paths)
           "$ci_script"
