@@ -8,7 +8,7 @@
 
 stdenv.mkDerivation {
   pname = "nanobrew";
-  version = "0.1.191";
+  version = "0.1.192";
 
   src = nanobrew-src;
 
