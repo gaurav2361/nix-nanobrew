@@ -1,78 +1,72 @@
+# Genuine nanobrew configuration example
+#
+# This file demonstrates how to use the nix-nanobrew module
+# in a standard Nix configuration.
+
+{ pkgs, inputs, ... }:
 {
-  pkgs,
-  inputs,
-  config,
-  lib,
-  ...
-}:
-let
-  # Internal configuration shortcut
-  cfg = config.modules.darwin.nanobrew;
-in
-lib.mkModule {
-  globalConfig = config;
-  name = "darwin.nanobrew";
-  description = "macOS nanobrew package manager setup";
+  # 1. Import the nix-nanobrew module from flake inputs
+  imports = [ inputs.nix-nanobrew.darwinModules.nix-nanobrew ];
 
-  # Define the module options
-  options = {
-    brews = lib.mkOption {
-      type = lib.types.listOf lib.types.str;
-      default = [ ];
-      description = "List of Homebrew formulae to install via nanobrew.";
-    };
-    casks = lib.mkOption {
-      type = lib.types.listOf lib.types.str;
-      default = [ ];
-      description = "List of Homebrew casks to install via nanobrew.";
-    };
-    autoMigrate = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = "Whether to automatically migrate existing Homebrew installations.";
-    };
-    user = lib.mkOption {
-      type = lib.types.str;
-      description = "The user who should own /opt/nanobrew.";
-    };
+  # 2. Configure nix-nanobrew options directly
+  nix-nanobrew = {
+    enable = true;
+    user = "yourname"; # Replace with your actual username
+    autoMigrate = true; # Set to true to import existing Homebrew packages
+
+    # Declarative package lists
+    brews = [
+      "mas"
+      "mole"
+      "sheets"
+      "libiconv"
+      "tesseract"
+      "gemini-cli"
+      "tree-sitter"
+      "tesseract-lang"
+      "tree-sitter-cli"
+      "netbirdio/tap/netbird"
+      "Arthur-Ficial/tap/apfel"
+    ];
+
+    casks = [
+      "iina"
+      "blip"
+      "bruno"
+      "motrix"
+      "raycast"
+      "spotify"
+      "obsidian"
+      "antigravity"
+      "google-drive"
+      "google-chrome"
+      "brave-browser"
+      "keyboardcleantool"
+      "mhaeuser/mhaeuser/battery-toolkit"
+    ];
   };
 
-  # Implementation logic
-  config = lib.mkIf cfg.enable {
-    # 1. Import the base nix-nanobrew logic
-    imports = [ inputs.nix-nanobrew.darwinModules.nix-nanobrew ];
+  # 3. Extra system setup (optional)
+  environment.systemPackages = with pkgs; [ pkg-config ];
+  environment.systemPath = [ "/opt/nanobrew/prefix/bin" ];
 
-    # 2. Map local options to the base module
-    nix-nanobrew = {
-      enable = true;
-      user = cfg.user;
-      autoMigrate = cfg.autoMigrate;
-      brews = cfg.brews;
-      casks = cfg.casks;
-    };
-
-    # 3. Extra system setup
-    environment.systemPackages = with pkgs; [ pkg-config ];
-    environment.systemPath = [ "/opt/nanobrew/prefix/bin" ];
-
-    # 4. Handle Xcode/Rosetta prerequisites
-    system.activationScripts.preActivation.text = ''
-      echo "━━━ Checking Prerequisites ━━━"
-      if ! xcode-select -p &> /dev/null; then
-        echo "Installing Xcode Command Line Tools..."
-        touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-        PROD=$(softwareupdate -l | grep "\*.*Command Line" | tail -n 1 | sed 's/^[^C]* //')
-        if [ -n "$PROD" ]; then
-          softwareupdate -i "$PROD" --verbose
-          echo "✓ Xcode Command Line Tools: Installed"
-        fi
-        rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+  # 4. Handle Xcode prerequisites (standard pattern)
+  system.activationScripts.preActivation.text = ''
+    echo "━━━ Checking Prerequisites ━━━"
+    if ! xcode-select -p &> /dev/null; then
+      echo "Installing Xcode Command Line Tools..."
+      touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+      PROD=$(softwareupdate -l | grep "\*.*Command Line" | tail -n 1 | sed 's/^[^C]* //')
+      if [ -n "$PROD" ]; then
+        softwareupdate -i "$PROD" --verbose
+        echo "✓ Xcode Command Line Tools: Installed"
       fi
+      rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+    fi
 
-      if ! /usr/bin/pgrep -q oahd; then
-        echo "Installing Rosetta 2..."
-        sudo softwareupdate --install-rosetta --agree-to-license 2>/dev/null || true
-      fi
-    '';
-  };
+    if ! /usr/bin/pgrep -q oahd; then
+      echo "Installing Rosetta 2..."
+      sudo softwareupdate --install-rosetta --agree-to-license 2>/dev/null || true
+    fi
+  '';
 }
