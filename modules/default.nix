@@ -13,9 +13,6 @@
 let
   inherit (lib) types;
 
-  # Detect if we are on Darwin
-  isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
-
   # Support both 'nix-nanobrew' and 'modules.darwin.nanobrew' (for dotfiles style)
   cfg = if config.modules.darwin.nanobrew.enable or false then config.modules.darwin.nanobrew else config.nix-nanobrew;
 
@@ -112,11 +109,10 @@ in
 {
   options = {
     nix-nanobrew = nanobrewOptions;
-    # Define modules.darwin.nanobrew to match user style
     modules.darwin.nanobrew = nanobrewOptions;
   };
 
-  config = lib.mkIf (cfg.enable) {
+  config = lib.mkIf cfg.enable {
     # Shell integrations: Add /opt/nanobrew/prefix/bin to PATH
     programs.bash.interactiveShellInit = lib.mkIf cfg.enableBashIntegration ''
       export PATH="/opt/nanobrew/prefix/bin:$PATH"
@@ -144,7 +140,7 @@ in
     };
 
     # Bypass nix-darwin's Homebrew installation check if we are managing it.
-    system.checks.text = lib.mkIf (isDarwin && config.homebrew.enable or false) (
+    system.checks.text = lib.mkIf (config.homebrew.enable or false) (
       lib.mkBefore ''
         # Ignore unused variable in nix-darwin versions without it
         # shellcheck disable=SC2034
