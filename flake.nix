@@ -1,35 +1,41 @@
 {
-  description = "Homebrew installation manager for nix-darwin";
+  description = "nanobrew installation manager for nix-darwin";
 
   inputs = {
-    brew-src = {
-      url = "github:Homebrew/brew/5.1.1";
+    nanobrew-src = {
+      url = "github:justrach/nanobrew";
       flake = false;
     };
   };
 
-  outputs = { self, brew-src }: let
-    flakeLock = builtins.fromJSON (builtins.readFile ./flake.lock);
-    brewVersion = flakeLock.nodes.brew-src.original.ref;
+  outputs =
+    { self, nanobrew-src }:
+    let
+      ci = (import ./ci/flake-compat.nix).makeCi {
+        inherit self nanobrew-src;
+      };
+    in
+    {
+      darwinModules = rec {
+        nix-nanobrew =
+          { pkgs, lib, ... }:
+          {
+            imports = [
+              ./modules
+            ];
+            nix-nanobrew.package = lib.mkOptionDefault (self.packages.${pkgs.system}.nanobrew);
+          };
 
-    ci = (import ./ci/flake-compat.nix).makeCi {
-      inherit self brew-src;
-    };
-  in {
-    darwinModules = rec {
-      nix-homebrew = { lib, ... }: {
-        imports = [
-          ./modules
-        ];
-        nix-homebrew.package = lib.mkOptionDefault (brew-src // {
-          name = "brew-${brewVersion}";
-          version = brewVersion;
-        });
+        default = nix-nanobrew;
       };
 
-      default = nix-homebrew;
-    };
+      packages = {
+        x86_64-darwin.nanobrew = ci.packages.x86_64-darwin.nanobrew;
+        aarch64-darwin.nanobrew = ci.packages.aarch64-darwin.nanobrew;
+        x86_64-linux.nanobrew = ci.packages.x86_64-linux.nanobrew;
+        aarch64-linux.nanobrew = ci.packages.aarch64-linux.nanobrew;
+      };
 
-    inherit (ci) packages devShell ciTests githubActions;
-  };
+      inherit (ci) devShell ciTests githubActions;
+    };
 }
