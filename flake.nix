@@ -4,7 +4,8 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nanobrew-src = {
-      url = "path:../nanobrew";
+      url = "github:justrach/nanobrew";
+      flake = false;
     };
     zig-overlay = {
       url = "github:mitchellh/zig-overlay";

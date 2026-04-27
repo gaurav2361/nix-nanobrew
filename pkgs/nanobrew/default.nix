@@ -12,6 +12,10 @@ stdenv.mkDerivation {
 
   src = nanobrew-src;
 
+  patches = [
+    ./fix-migrate-metadata.patch
+  ];
+
   nativeBuildInputs = [ zig ];
 
   buildPhase = ''
