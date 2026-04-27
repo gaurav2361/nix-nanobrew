@@ -1,0 +1,303 @@
+➜ dotfiles git:(main) ✘ sudo darwin-rebuild switch --flake .#coffee --show-trace
+building the system configuration...
+━━━ Checking Prerequisites ━━━
+setting up /Applications/Nix Apps...
+setting up pam...
+applying patches...
+setting up /etc...
+system defaults...
+user defaults...
+restarting Dock...
+setting up launchd services...
+configuring networking...
+configuring application firewall...
+configuring power...
+configuring keyboard...
+setting up /Library/Fonts/Nix Fonts...
+setting nvram variables...
+Activating home-manager configuration for gaurav
+Starting Home Manager activation
+Activating checkFilesChanged
+Activating checkLinkTargets
+Activating writeBoundary
+Activating migrateGhAccounts
+Activating linkGeneration
+Cleaning up orphan links from /Users/gaurav
+Creating home file links in /Users/gaurav
+Activating batCache
+No themes were found in '/Users/gaurav/.config/bat/themes', using the default set
+No syntaxes were found in '/Users/gaurav/.config/bat/syntaxes', using the default set.
+Writing theme set to /Users/gaurav/.cache/bat/themes.bin ... okay
+Writing syntax set to /Users/gaurav/.cache/bat/syntaxes.bin ... okay
+Writing metadata to folder /Users/gaurav/.cache/bat ... okay
+Activating createCustomDirs
+Activating initNode
+Activating initRust
+Activating installPackages
+Activating onFilesChange
+Activating setupLaunchAgents
+Activating sops-nix
+━━━ nanobrew: setting up /opt/nanobrew ━━━
+nb: note: /opt/homebrew exists (Homebrew installation detected), skipping compat symlink
+nanobrew initialized at /opt/nanobrew
+Add to your shell: export PATH="/opt/nanobrew/prefix/bin:$PATH"
+Reconciling packages (migrate)...
+Migrated: llhttp 9.3.1
+Migrated: libtiff 4.7.1
+Migrated: libiconv 1.19
+Migrated: merve 1.2.2
+Migrated: xorgproto 2025.1
+Migrated: tree-sitter 0.26.8
+Migrated: mas 6.0.1
+Migrated: simdjson 4.6.2
+Migrated: simdjson 4.6.1
+Migrated: libxau 1.0.12
+Migrated: little-cms2 2.18
+Migrated: sheets 0.2.0
+Migrated: libpng 1.6.54
+Migrated: nbytes 0.1.4
+Migrated: apfel 0.9.6
+Migrated: pixman 0.46.4
+Migrated: libxdmcp 1.1.5
+Migrated: libuv 1.52.1
+Migrated: freetype 2.14.1_1
+Migrated: hdrhistogram_c 0.11.9
+Migrated: simdutf 8.2.0
+Migrated: fmt 12.1.0
+Migrated: libunistring 1.4.1
+Migrated: pango 1.57.0_1
+Migrated: openjpeg 2.5.4
+Migrated: brotli 1.2.0
+Migrated: harfbuzz 12.3.2
+Migrated: glib 2.86.3
+Migrated: libxcb 1.17.0
+Migrated: readline 8.3.3
+Migrated: lz4 1.10.0
+Migrated: netbird 0.67.0
+Migrated: tesseract-lang 4.1.0
+Migrated: graphite2 1.3.14
+Migrated: libnghttp3 1.15.0
+Migrated: libarchive 3.8.5
+Migrated: tesseract 5.5.2
+Migrated: cairo 1.18.4
+Migrated: webp 1.6.0
+Migrated: sqlite 3.53.0
+Migrated: c-ares 1.34.6
+Migrated: fribidi 1.0.16
+Migrated: xz 5.8.3
+Migrated: libnghttp2 1.68.1
+Migrated: fontconfig 2.17.1
+Migrated: giflib 5.2.2
+Migrated: tree-sitter-cli 0.26.8
+Migrated: uvwasi 0.0.23
+Migrated: libxrender 0.9.12
+Migrated: libb2 0.98.1
+Migrated: gemini-cli 0.38.2
+Migrated: openssl@3 3.6.2
+Migrated: ca-certificates 2026-03-19
+Migrated: gettext 0.26_1
+Migrated: zstd 1.5.7_1
+Migrated: libxext 1.3.6
+Migrated: pcre2 10.47
+Migrated: leptonica 1.87.0
+Migrated: ada-url 3.4.4
+Migrated: node 25.9.0_2
+Migrated: mole 1.36.1
+Migrated: libngtcp2 1.22.1
+Migrated: libngtcp2 1.22.0
+Migrated: icu4c@78 78.3
+Migrated: libx11 1.8.12
+Migrated: lzo 2.10
+Migrated: jpeg-turbo 3.1.3
+Migrated: motrix .metadata (cask)
+Migrated: motrix 1.8.19 (cask)
+Migrated: google-chrome .metadata (cask)
+Migrated: google-chrome 144.0.7559.97 (cask)
+Migrated: iina 1.4.1,160 (cask)
+Migrated: iina .metadata (cask)
+Migrated: spotify .metadata (cask)
+Migrated: spotify 1.2.88.483 (cask)
+Migrated: bruno 3.3.0 (cask)
+Migrated: bruno .metadata (cask)
+Migrated: blip .metadata (cask)
+Migrated: blip 1.1.16,20260425132215 (cask)
+Migrated: brave-browser .metadata (cask)
+Migrated: brave-browser 1.86.142.0 (cask)
+Migrated: google-drive 120.0.1 (cask)
+Migrated: google-drive .metadata (cask)
+Migrated: keyboardcleantool .metadata (cask)
+Migrated: keyboardcleantool 7 (cask)
+Migrated: raycast .metadata (cask)
+Migrated: raycast 1.104.3 (cask)
+Migrated: obsidian .metadata (cask)
+Migrated: obsidian 1.11.5 (cask)
+Migrated: antigravity .metadata (cask)
+Migrated: antigravity 1.15.8,5724687216017408 (cask)
+Migrated: battery-toolkit 1.8 (cask)
+Migrated: battery-toolkit .metadata (cask)
+
+Migrated 67 formulae and 26 casks from Homebrew
+Syncing declarative packages (bundle install)...
+==> Installing from bundle: 2 formulae, 1 casks (17 already installed)
+==> Resolving dependencies...
+    [3531ms]
+==> Already installed (2 packages up to date)
+==> Done in 3532.7ms
+==> Fetching cask metadata for mhaeuser/mhaeuser/battery-toolkit...
+nb: refusing to overwrite existing app at /Applications/Battery Toolkit.app
+    Move or remove that destination first, or keep Battery Toolkit managed outside nanobrew.
+==> Done in 1553.7ms
+Warning: Some packages failed to install/update.
+Upgrading formulae and casks...
+==> Checking 81 package(s) for updates...
+==> Upgrading 26 package(s):
+    google-chrome (144.0.7559.97 -> 147.0.7727.117) (cask)
+    iina (.metadata -> 1.4.2,164) (cask)
+    bruno (.metadata -> 3.3.0) (cask)
+    brave-browser (1.86.142.0 -> 1.89.143.0) (cask)
+    google-drive (.metadata -> 124.0.3) (cask)
+    raycast (1.104.3 -> 1.104.13) (cask)
+    obsidian (1.11.5 -> 1.12.7) (cask)
+    antigravity (1.15.8,5724687216017408 -> 1.23.2,4781536860569600) (cask)
+    simdjson (4.6.1 -> 4.6.3)
+    little-cms2 (2.18 -> 2.19)
+    libpng (1.6.54 -> 1.6.58)
+    freetype (2.14.1_1 -> 2.14.3)
+    simdutf (8.2.0 -> 9.0.0)
+    libunistring (1.4.1 -> 1.4.2)
+    pango (1.57.0_1 -> 1.57.1)
+    harfbuzz (12.3.2 -> 14.2.0)
+    glib (2.86.3 -> 2.88.0)
+    libarchive (3.8.5 -> 3.8.7)
+    libnghttp2 (1.68.1 -> 1.69.0)
+    giflib (5.2.2 -> 6.1.3)
+    gettext (0.26_1 -> 1.0)
+    libxext (1.3.6 -> 1.3.7)
+    libngtcp2 (1.22.0 -> 1.22.1)
+    libx11 (1.8.12 -> 1.8.13)
+    jpeg-turbo (3.1.3 -> 3.1.4.1)
+    apfel (, shell_output( -> 1.3.2)
+==> google-chrome 144.0.7559.97 is already installed
+==> Done in 0.3ms
+==> Upgraded google-chrome (144.0.7559.97 -> 147.0.7727.117)
+==> iina .metadata is already installed
+==> Done in 0.2ms
+==> Upgraded iina (.metadata -> 1.4.2,164)
+==> bruno .metadata is already installed
+==> Done in 0.2ms
+==> Upgraded bruno (.metadata -> 3.3.0)
+==> brave-browser 1.86.142.0 is already installed
+==> Done in 0.2ms
+==> Upgraded brave-browser (1.86.142.0 -> 1.89.143.0)
+==> google-drive .metadata is already installed
+==> Done in 0.1ms
+==> Upgraded google-drive (.metadata -> 124.0.3)
+==> raycast 1.104.3 is already installed
+==> Done in 0.2ms
+==> Upgraded raycast (1.104.3 -> 1.104.13)
+==> obsidian 1.11.5 is already installed
+==> Done in 0.1ms
+==> Upgraded obsidian (1.11.5 -> 1.12.7)
+==> antigravity 1.15.8,5724687216017408 is already installed
+==> Done in 0.1ms
+==> Upgraded antigravity (1.15.8,5724687216017408 -> 1.23.2,4781536860569600)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (1 packages up to date)
+==> Done in 0.2ms
+==> Upgraded simdjson (4.6.1 -> 4.6.3)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (6 packages up to date)
+==> Done in 0.8ms
+==> Upgraded little-cms2 (2.18 -> 2.19)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (1 packages up to date)
+==> Done in 0.3ms
+==> Upgraded libpng (1.6.54 -> 1.6.58)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (2 packages up to date)
+==> Done in 1.5ms
+==> Upgraded freetype (2.14.1_1 -> 2.14.3)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (2 packages up to date)
+==> Done in 0.4ms
+==> Upgraded simdutf (8.2.0 -> 9.0.0)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (1 packages up to date)
+==> Done in 0.3ms
+==> Upgraded libunistring (1.4.1 -> 1.4.2)
+==> Resolving dependencies...
+    [1ms]
+==> Already installed (24 packages up to date)
+==> Done in 7.2ms
+==> Upgraded pango (1.57.0_1 -> 1.57.1)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (20 packages up to date)
+==> Done in 1.3ms
+==> Upgraded harfbuzz (12.3.2 -> 14.2.0)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (4 packages up to date)
+==> Done in 0.5ms
+==> Upgraded glib (2.86.3 -> 2.88.0)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (5 packages up to date)
+==> Done in 0.6ms
+==> Upgraded libarchive (3.8.5 -> 3.8.7)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (1 packages up to date)
+==> Done in 0.3ms
+==> Upgraded libnghttp2 (1.68.1 -> 1.69.0)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (1 packages up to date)
+==> Done in 0.3ms
+==> Upgraded giflib (5.2.2 -> 6.1.3)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (2 packages up to date)
+==> Done in 0.3ms
+==> Upgraded gettext (0.26_1 -> 1.0)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (6 packages up to date)
+==> Done in 0.5ms
+==> Upgraded libxext (1.3.6 -> 1.3.7)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (3 packages up to date)
+==> Done in 0.4ms
+==> Upgraded libngtcp2 (1.22.0 -> 1.22.1)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (5 packages up to date)
+==> Done in 0.5ms
+==> Upgraded libx11 (1.8.12 -> 1.8.13)
+==> Resolving dependencies...
+    [0ms]
+==> Already installed (1 packages up to date)
+==> Done in 0.3ms
+==> Upgraded jpeg-turbo (3.1.3 -> 3.1.4.1)
+==> Resolving dependencies...
+    [324ms]
+==> Installing 1 package(s) (0 already up to date):
+    apfel 1.3.2
+==> Downloading + installing 1 packages...
+    ✓ apfel
+    [2675ms]
+==> Done in 2999.0ms
+==> Upgraded apfel (, shell_output( -> 1.3.2)
+==> Done in 6781.7ms
+Cleaning up unlisted packages...
+nb: warning: could not fetch metadata for 1 package(s); results may be incomplete
+Removing unlisted cask: motrix
+==> Removed motrix
+━━━ nanobrew: setup complete ━━━
