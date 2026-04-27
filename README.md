@@ -64,7 +64,22 @@ It provides genuine declarative management: removing a package from your config 
 
 ## Modular Dotfiles Support
 
-If you use a modular pattern like `modules.darwin.<name>.enable`, this module natively supports the `modules.darwin.nanobrew` namespace with the exact same options, so you don't need any boilerplate bridges.
+If you use a modular pattern like `modules.darwin.<name>.enable`, you can forward your custom options to `nix-nanobrew`:
+
+```nix
+config = lib.mkIf config.modules.darwin.nanobrew.enable {
+  nix-nanobrew = {
+    enable = true;
+    user = "gaurav";
+    onActivation = {
+      cleanup = "uninstall";
+      upgrade = true;
+    };
+    brews = [ "jq" "ffmpeg" ];
+    casks = [ "raycast" ];
+  };
+};
+```
 
 ## License
 

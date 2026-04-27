@@ -1,8 +1,7 @@
 # Genuine nanobrew configuration example
 #
 # This file demonstrates a clean, declarative setup for nanobrew.
-# It uses the 'nix-nanobrew' namespace, but you can also use
-# 'modules.darwin.nanobrew' if your setup requires it.
+# This config uses the 'nix-nanobrew' namespace directly.
 
 { config, lib, ... }:
 let
@@ -16,7 +15,6 @@ in
     autoMigrate = true; # Reconcile existing packages
 
     onActivation = {
-      autoUpdate = false;
       cleanup = "uninstall"; # Genuine declarative cleanup: remove from config = remove from system
       upgrade = true;
     };
