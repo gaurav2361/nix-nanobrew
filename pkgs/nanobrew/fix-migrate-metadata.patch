@@ -1,36 +1,140 @@
-From 7d04df5de28278716a32e610f86b821d14a9cfe0 Mon Sep 17 00:00:00 2001
-From: gaurav2361 <gaurav23617@gmail.com>
-Date: Mon, 27 Apr 2026 12:21:47 +0530
-Subject: [PATCH] Fix Zig ArrayList syntax for 0.16.0
-
----
- src/main.zig | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
 diff --git a/src/main.zig b/src/main.zig
-index 46bbe8e..a2d370e 100644
+index 0465132..a2d370e 100644
 --- a/src/main.zig
 +++ b/src/main.zig
-@@ -4227,15 +4227,15 @@ fn runMigrate(alloc: std.mem.Allocator) void {
+@@ -4143,59 +4143,126 @@ fn runMigrate(alloc: std.mem.Allocator) void {
+     var formula_count: usize = 0;
+     var cask_count: usize = 0;
+ 
+-    // Scan Homebrew Cellar directories for formulae
+-    // Includes macOS paths and Linux Linuxbrew path (#72)
+-    const cellar_paths = [_][]const u8{ "/opt/homebrew/Cellar", "/usr/local/Cellar", "/home/linuxbrew/.linuxbrew/Cellar" };
++    const lib_io = std.Io.Threaded.global_single_threaded.io();
++
++    // Scan both Homebrew and Nanobrew prefixes to ensure all packages are correctly recorded with metadata
++    const cellar_paths = [_][]const u8{ "/opt/homebrew/Cellar", "/usr/local/Cellar", "/home/linuxbrew/.linuxbrew/Cellar", PREFIX ++ "/Cellar" };
+     for (cellar_paths) |cellar_path| {
+         var cellar_dir = std.Io.Dir.openDirAbsolute(g_io, cellar_path, .{ .iterate = true }) catch continue;
+         defer cellar_dir.close(g_io);
+ 
+         var formula_iter = cellar_dir.iterate();
+         while (formula_iter.next(g_io) catch null) |entry| {
+             if (entry.kind != .directory) continue;
+             const name = entry.name;
+ 
+-            // Open the formula directory to find version subdirectories
+             var formula_dir = cellar_dir.openDir(g_io, name, .{ .iterate = true }) catch continue;
+             defer formula_dir.close(g_io);
+ 
+             var ver_iter = formula_dir.iterate();
+             while (ver_iter.next(g_io) catch null) |ver_entry| {
+                 if (ver_entry.kind != .directory) continue;
+                 const version = ver_entry.name;
+ 
++                // Move from Homebrew to Nanobrew prefix so we can manage/delete it later
++                var src_buf: [1024]u8 = undefined;
++                const src = std.fmt.bufPrint(&src_buf, "{s}/{s}/{s}", .{ cellar_path, name, version }) catch continue;
++                var dst_buf: [1024]u8 = undefined;
++                const dst = std.fmt.bufPrint(&dst_buf, "{s}/Cellar/{s}/{s}", .{ PREFIX, name, version }) catch continue;
++
++                if (!std.mem.eql(u8, src, dst)) {
++                    std.Io.Dir.createDirAbsolute(lib_io, std.fs.path.dirname(dst).?, .default_dir) catch {};
++                    std.Io.Dir.renameAbsolute(src, dst, lib_io) catch |err| {
++                        if (err != error.PathAlreadyExists) {
++                            stderr.print("nb: failed to move {s} to {s}: {}\n", .{ src, dst, err }) catch {};
++                            continue;
++                        }
++                    };
++                }
++
+                 db.recordInstall(name, version, "") catch {
+                     stderr.print("nb: failed to record {s} {s}\n", .{ name, version }) catch {};
+                     continue;
                  };
-                 defer cask_meta.deinit(alloc);
+                 stdout.print("Migrated: {s} {s}\n", .{ name, version }) catch {};
+                 formula_count += 1;
+             }
+         }
+     }
  
--                var apps = std.ArrayList([]const u8).init(alloc);
+-    // Scan Homebrew Caskroom directories for casks
+-    const caskroom_paths = [_][]const u8{ "/opt/homebrew/Caskroom", "/usr/local/Caskroom", "/home/linuxbrew/.linuxbrew/Caskroom" };
++    // Scan both Homebrew and Nanobrew Caskroom directories
++    const caskroom_paths = [_][]const u8{ "/opt/homebrew/Caskroom", "/usr/local/Caskroom", "/home/linuxbrew/.linuxbrew/Caskroom", PREFIX ++ "/Caskroom" };
+     for (caskroom_paths) |caskroom_path| {
+         var caskroom_dir = std.Io.Dir.openDirAbsolute(g_io, caskroom_path, .{ .iterate = true }) catch continue;
+         defer caskroom_dir.close(g_io);
+ 
+         var cask_iter = caskroom_dir.iterate();
+         while (cask_iter.next(g_io) catch null) |entry| {
+             if (entry.kind != .directory) continue;
+             const token = entry.name;
+ 
+             var cask_dir = caskroom_dir.openDir(g_io, token, .{ .iterate = true }) catch continue;
+             defer cask_dir.close(g_io);
+ 
+             var ver_iter = cask_dir.iterate();
+             while (ver_iter.next(g_io) catch null) |ver_entry| {
+                 if (ver_entry.kind != .directory) continue;
++                if (std.mem.eql(u8, ver_entry.name, ".metadata")) continue;
+                 const version = ver_entry.name;
+ 
+-                const empty_apps: []const []const u8 = &.{};
+-                const empty_bins: []const []const u8 = &.{};
+-                db.recordCaskInstall(token, version, empty_apps, empty_bins) catch {
++                // Healing logic: if already in DB but missing apps/bins, fetch metadata anyway
++                const existing = db.findCask(token);
++                if (existing) |record| {
++                    if (record.apps.len > 0 and std.mem.eql(u8, record.version, version)) continue;
++                }
++
++                // Fetch metadata to find artifacts (.app paths) so nb remove works
++                const cask_meta = nb.api_client.fetchCask(alloc, token) catch {
++                    // Fallback to recording with empty artifacts if offline/not found
++                    if (existing == null) {
++                        db.recordCaskInstall(token, version, &.{}, &.{}) catch {};
++                        stdout.print("Migrated: {s} {s} (cask, no metadata)\n", .{ token, version }) catch {};
++                    }
++                    continue;
++                };
++                defer cask_meta.deinit(alloc);
++
 +                var apps: std.ArrayList([]const u8) = .empty;
-                 defer {
-                     for (apps.items) |a| alloc.free(a);
--                    apps.deinit();
++                defer {
++                    for (apps.items) |a| alloc.free(a);
 +                    apps.deinit(alloc);
-                 }
--                var bins = std.ArrayList([]const u8).init(alloc);
++                }
 +                var bins: std.ArrayList([]const u8) = .empty;
-                 defer {
-                     for (bins.items) |b| alloc.free(b);
--                    bins.deinit();
++                defer {
++                    for (bins.items) |b| alloc.free(b);
 +                    bins.deinit(alloc);
-                 }
- 
-                 for (cask_meta.artifacts) |art| {
--- 
-2.53.0
-
++                }
++
++                for (cask_meta.artifacts) |art| {
++                    switch (art) {
++                        .app => |app_name| apps.append(alloc.dupe(u8, app_name) catch continue) catch {},
++                        .binary => |bin| bins.append(alloc.dupe(u8, bin.target) catch continue) catch {},
++                        else => {},
++                    }
++                }
++
++                // Move from Homebrew to Nanobrew prefix
++                var src_buf: [1024]u8 = undefined;
++                const src = std.fmt.bufPrint(&src_buf, "{s}/{s}/{s}", .{ caskroom_path, token, version }) catch continue;
++                var dst_buf: [1024]u8 = undefined;
++                const dst = std.fmt.bufPrint(&dst_buf, "{s}/Caskroom/{s}/{s}", .{ PREFIX, token, version }) catch continue;
++
++                if (!std.mem.eql(u8, src, dst)) {
++                    std.Io.Dir.createDirAbsolute(lib_io, std.fs.path.dirname(dst).?, .default_dir) catch {};
++                    std.Io.Dir.renameAbsolute(src, dst, lib_io) catch |err| {
++                        if (err != error.PathAlreadyExists) {
++                            stderr.print("nb: failed to move {s} to {s}: {}\n", .{ src, dst, err }) catch {};
++                            // Continue anyway; recording the install is still better than nothing
++                        }
++                    };
++                }
++
++                db.recordCaskInstall(token, version, apps.items, bins.items) catch {
+                     stderr.print("nb: failed to record cask {s} {s}\n", .{ token, version }) catch {};
+                     continue;
+                 };
