@@ -34,7 +34,7 @@ let
     NIX_NANOBREW_UID=$(id -u "$USER" || (echo "Error: Failed to get UID of $USER" >&2; exit 1))
     
     if [[ "$(uname)" == "Darwin" ]]; then
-      NIX_NANOBREW_GID=$(dscl . -read "/Groups/$GROUP" PrimaryGroupID 2>/dev/null | awk '($1 == "PrimaryGroupID:") { print $2 }' || id -g "$USER")
+      NIX_NANOBREW_GID=$(dscl . -read "/Groups/$GROUP" PrimaryGroupID 2>/dev/null | awk '{print $2}' || id -g "$USER")
     else
       NIX_NANOBREW_GID=$(getent group "$GROUP" | cut -d: -f3 || id -g "$USER")
     fi
@@ -82,9 +82,8 @@ let
       # Helper function for array membership
       contains_pkg() {
         local pkg="$1"
-        local list_name="$2"
-        eval "local -a list=(\"\${''${list_name}[@]}\")"
-        for item in "''${list[@]}"; do
+        shift
+        for item in "$@"; do
           # Match exact name OR the short name (tail of tap ref)
           if [[ "$item" == "$pkg" ]] || [[ "$item" == */"$pkg" ]]; then
             return 0
@@ -99,7 +98,7 @@ let
         # nb leaves returns "name version"
         LEAVES=$(sudo -H -u "$USER" ${nb}/bin/nb leaves | awk '{print $1}')
         for pkg in $LEAVES; do
-          if contains_pkg "$pkg" "DESIRED_BREWS" || contains_pkg "$pkg" "DESIRED_CASKS"; then
+          if contains_pkg "$pkg" "''${DESIRED_BREWS[@]}" "''${DESIRED_CASKS[@]}"; then
             continue
           fi
           echo "Removing unlisted formula: $pkg"
@@ -115,7 +114,7 @@ let
       # Cleanup casks
       INSTALLED_CASKS=$(sudo -H -u "$USER" ${nb}/bin/nb list | grep "(cask)" | awk '{print $1}')
       for cask in $INSTALLED_CASKS; do
-        if ! contains_pkg "$cask" "DESIRED_CASKS"; then
+        if ! contains_pkg "$cask" "''${DESIRED_CASKS[@]}"; then
           echo "Removing unlisted cask: $cask"
           sudo -H -u "$USER" ${nb}/bin/nb remove --cask "$cask"
         fi
@@ -189,7 +188,8 @@ in
       ${setupNanobrew}
     '';
 
-    system.checks.text = lib.mkIf (config.homebrew.enable or false) (
+    # Bypass nix-darwin's Homebrew installation check
+    system.checks.text = lib.mkIf (pkgs.stdenv.hostPlatform.isDarwin && (config.homebrew.enable or false)) (
       lib.mkBefore ''
         # Ignore unused variable in nix-darwin versions without it
         # shellcheck disable=SC2034

@@ -47,6 +47,8 @@
         default = nix-nanobrew;
       };
 
+      nixosModules = darwinModules;
+
       packages = forAllSystems (system: {
         nanobrew = nixpkgs.legacyPackages.${system}.callPackage ./pkgs/nanobrew {
           inherit nanobrew-src;
