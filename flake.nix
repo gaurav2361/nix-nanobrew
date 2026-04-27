@@ -32,22 +32,26 @@
       ci = (import ./ci/flake-compat.nix).makeCi {
         inherit self nanobrew-src;
       };
+
+      nix-nanobrew-module =
+        { pkgs, lib, ... }:
+        {
+          imports = [
+            ./modules
+          ];
+          nix-nanobrew.package = lib.mkOptionDefault (self.packages.${pkgs.system}.nanobrew);
+        };
     in
     {
-      darwinModules = rec {
-        nix-nanobrew =
-          { pkgs, lib, ... }:
-          {
-            imports = [
-              ./modules
-            ];
-            nix-nanobrew.package = lib.mkOptionDefault (self.packages.${pkgs.system}.nanobrew);
-          };
-
-        default = nix-nanobrew;
+      darwinModules = {
+        nix-nanobrew = nix-nanobrew-module;
+        default = nix-nanobrew-module;
       };
 
-      nixosModules = darwinModules;
+      nixosModules = {
+        nix-nanobrew = nix-nanobrew-module;
+        default = nix-nanobrew-module;
+      };
 
       packages = forAllSystems (system: {
         nanobrew = nixpkgs.legacyPackages.${system}.callPackage ./pkgs/nanobrew {

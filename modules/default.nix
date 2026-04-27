@@ -137,7 +137,7 @@ in
     group = lib.mkOption {
       description = "The group that should own /opt/nanobrew.";
       type = types.str;
-      default = "admin";
+      default = if pkgs.stdenv.hostPlatform.isDarwin then "admin" else "users";
     };
     autoMigrate = lib.mkOption {
       description = "Whether to automatically migrate existing Homebrew installations.";
@@ -155,11 +155,6 @@ in
       default = [ ];
     };
     onActivation = {
-      autoUpdate = lib.mkOption {
-        type = types.bool;
-        default = false;
-        description = "Whether to check for nanobrew updates on activation.";
-      };
       upgrade = lib.mkOption {
         type = types.bool;
         default = false;
