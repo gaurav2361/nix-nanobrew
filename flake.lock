@@ -19,11 +19,11 @@
     "nanobrew-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1777200618,
-        "narHash": "sha256-tvE0+XeDl3aSOnfMvP2sbA5J1cZEgi2PkFg6f0MdrKM=",
+        "lastModified": 1777361864,
+        "narHash": "sha256-A3Eglpu7eARbeVDD95MkZp3DruNc4wNS8yR3A1gY0+0=",
         "owner": "justrach",
         "repo": "nanobrew",
-        "rev": "05b3bfe5df464744051c59177533424cfad617f4",
+        "rev": "402a845b95d83e3cabe440c246636f2e79e88a47",
         "type": "github"
       },
       "original": {
